@@ -1,9 +1,11 @@
 #include "roots.hpp"
 #include <cmath>
 #include <stdexcept>
+// Function shortcut
+using Function = std::function<double(double)>;
 
 // Implements the bisection method to find a root of the function f in the interval [a, b] with a specified tolerance tol
-double bisection(Function f, double a, double b, double tol)
+bool bisection(Function f, double a, double b, double *root)
 {
     // evaluate function at endpoints
     double fa = f(a);
@@ -13,6 +15,8 @@ double bisection(Function f, double a, double b, double tol)
     if (fa * fb > 0)
         throw std::runtime_error("f(a) and f(b) must have opposite signs");
 
+        const double tol = 1e-6;
+
     // Main loop, iterating 1 mil times at max if error
         for (int i= 0; i<1e6; ++i){
             // Locates and evaluates at midpoint
@@ -20,9 +24,10 @@ double bisection(Function f, double a, double b, double tol)
             double fc = f(c);
 
             // checks if the function value at midpoint is near a root
-            if (std::abs(fc) < tol || (b-a)/2 <tol)
-                return c; // root found
-
+            if (std::abs(fc) < tol || (b-a)/2 <tol){
+                *root = c;
+                return true; // root found
+            }
             // check if root is in left or right subinterval
             if (fa * fc < 0){
                 b = c;
@@ -37,7 +42,7 @@ double bisection(Function f, double a, double b, double tol)
 }
 
 // Implements the Regula Falsi (False Position) method to find a root of the function f in the interval [a, b] with a specified tolerance tol
-double regula_falsi(Function f, double a, double b, double tol)
+bool regula_falsi(Function f, double a, double b, double *root)
 {
     // evaluate function at endpoints
     double fa = f(a);
@@ -46,7 +51,7 @@ double regula_falsi(Function f, double a, double b, double tol)
     // Check that f(a) and f(b) have opposite signs as Regula Falsi method requires opposite signs
     if (fa * fb > 0)
         throw std::runtime_error("f(a) and f(b) must have opposite signs");
-
+    const double tol = 1e-6;
     // Main loop, iterating 1 mil times at max if error
     for (int i = 0; i < 1e6; ++i) {
         // Calculate the point c using the Regula Falsi formula
@@ -54,9 +59,10 @@ double regula_falsi(Function f, double a, double b, double tol)
         double fc = f(c);
 
         // Find if the function value at c is near a root
-        if (std::abs(fc) < tol)
-            return c; // root found
-
+        if (std::abs(fc) < tol){
+            *root = c;    
+            return true; // root found
+        }
         // Update the interval [a, b] based on the sign of f(c)
         if (fa * fc < 0) {
             b = c;
@@ -70,12 +76,13 @@ double regula_falsi(Function f, double a, double b, double tol)
 }
 
 // Implements the Newton-Raphson method to find a root of the function f given its derivative df, starting from an initial guess x0 with a specified tolerance tol
-double newton_raphson(Function f, Function df, double x0, double tol)
+bool newton_raphson(Function f, Function df, double a, double b, double x0, double *root)
 {
-
+    (void)a; // Unused parameters
+    (void)b; //unused parameters
     // Initial guess
     double x = x0;
-
+    const double tol = 1e-6;
     // Main loop, iterating 1 mil times at max if error
     for (int i = 0; i < 1e6; ++i) {
         double fx = f(x);
@@ -83,27 +90,30 @@ double newton_raphson(Function f, Function df, double x0, double tol)
 
         // Check if derivative is zero to avoid division by zero
         if (std::abs(dfx) <= 1e-12)
-            throw std::runtime_error("Derivative is zero. No solution found.");
+            throw std::runtime_error("Derivative is too small. No solution found.");
 
         // Use Newton-Raphson formula to find new xn
         double xn = x - fx / dfx;
 
         // Check for convergence, aka xn - x < 1e-6
-        if (std::abs(xn - x) < tol)
-            return xn; // root found
-
+        if (std::abs(xn - x) < tol){
+            *root = xn;
+            return true; // root found
+        }
         x = xn;
     }
     throw std::runtime_error("Newton-Raphson method did not converge within the maximum number of iterations");
 }
 
 //Implements the Secant method to find a root of the function f, starting from two initial guesses x0 and x1 with a specified tolerance tol
-double secant(Function f, double x0, double x1, double tol)
+bool secant(Function f, double x0, double x1, double c, double *root)
 {
+    (void)c; // Unused parameter
     // Define function values at initial guesses
     double f0 = f(x0);
     double f1 = f(x1);
 
+    const double tol = 1e-6;
     for (int i =0; i < 1e6; ++i){
         // Check if division is invalid
         if (std::abs(f1 - f0) <= 1e-12)
@@ -113,9 +123,10 @@ double secant(Function f, double x0, double x1, double tol)
         double xn1 = x0 - f0 * (x1 - x0) / (f1 - f0);
 
         //Check for convergence
-        if (std::abs(xn1 - x1) < tol)
-            return xn1; // root found
-
+        if (std::abs(xn1 - x1) < tol){
+            *root = xn1;
+            return true; // root found
+        }
 
         // Update variables for next iteration
         x0 = x1;
@@ -128,11 +139,15 @@ double secant(Function f, double x0, double x1, double tol)
 
 
 // Find local max using where f'(x) = 0, confirm with  f''(x) <0
-double localmax(Function f, Function df, Function ddf, double a, double b, double tol)  {
-    double x = bisection(df, a, b, tol); // find critical point where f'(x) = 0
+bool localmax(Function f, Function df, Function ddf, double a, double b, double tol, double *root)  {
+    double temp;
+    if (!bisection(df, a, b, &temp))
+        throw std::runtime_error("No critical point found in the interval");
 
-    if (ddf(x) < 0)
-        return x; // local maximum found
-    else
-        throw std::runtime_error("No local maximum found in the given interval");
+    if (ddf(temp) < 0) {
+        *root = temp;
+        return true; // local max found
+    } else {
+        return false; // critical point is not a local max
+    }
 }
