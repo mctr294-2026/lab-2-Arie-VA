@@ -15,7 +15,7 @@ bool bisection(Function f, double a, double b, double *root)
     if (fa * fb > 0)
         throw std::runtime_error("f(a) and f(b) must have opposite signs");
 
-        const double tol = 1e-6;
+    const double tol = 1e-6;
 
     // Main loop, iterating 1 mil times at max if error
         for (int i= 0; i<1e6; ++i){
